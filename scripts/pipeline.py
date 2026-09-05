@@ -8,12 +8,12 @@ RAW_PATH = DATA_DIR / "EcommData_CSV.csv"
 
 
 #нет ORDER_COL=""
-#ORDER_KEY=""
+
 MONEY_COL="Purchase Amount (USD)"
 DATE_COL="Purchase Date"
 DIM_COL="Location"
 CLIENT_COL="Customer ID"
-CLIENT_KEY=""
+
 
 
 def load_data(path: Path)->pd.DataFrame:
@@ -69,8 +69,8 @@ def build_people(clean: pd.DataFrame)->pd.DataFrame:
 
     )
     print("клиентов", len(people))
-    print("покупок на клиента min/median/max",int(people["orders"].min()), people["orders"].median(), int(people["orders"].max()))
-    print("repeat%", round((people["orders"] >= 2).mean() * 100, 1))
+    #print("покупок на клиента min/median/max",int(people["orders"].min()), people["orders"].median(), (people["orders"].max()))
+    #print("repeat%", round((people["orders"] >= 2).mean() * 100, 1))
 
     return people
 
