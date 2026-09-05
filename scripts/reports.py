@@ -49,8 +49,9 @@ def kpi_year_month(clean: pd.DataFrame) -> pd.DataFrame:
     return y_m
 
 
-# из pipeline: все клиенты покупали минимум 2 раза — смотрю медиану, не один repeat%
+
 def kpi_repeat(people: pd.DataFrame) -> None:
+    # из pipeline: все клиенты покупали минимум 2 раза — смотрю медиану, не один repeat%
     print("people", len(people))
     print(
         "покупок min/median/max",
@@ -92,12 +93,54 @@ def kpi_retention(clean: pd.DataFrame) -> None:
     print(ret.iloc[:6, :8].round(3))
 
 
+def kpi_rfm(clean: pd.DataFrame, people: pd.DataFrame) -> pd.DataFrame:
+    # R = дни с ПОСЛЕДНЕЙ покупки (не first_order). Опора = max даты в файле, не now().
+    ref = clean[DATE_COL].max()
+    last = clean.groupby(CLIENT_COL)[DATE_COL].max().rename("last_order")
+    rfm = people.merge(last, left_on=CLIENT_COL, right_index=True, how="left")
+    rfm["recency"] = (ref - rfm["last_order"]).dt.days
+    rfm["frequency"] = rfm["orders"]
+    rfm["monetary"] = rfm["gmv"]
+    # R: меньше дней → выше балл. F/M: больше → выше.
+    rfm["R"] = pd.qcut(rfm["recency"], 3, labels=[3, 2, 1], duplicates="drop")
+    rfm["F"] = pd.qcut(
+        rfm["frequency"].rank(method="first"), 3, labels=[1, 2, 3], duplicates="drop"
+    )
+    rfm["M"] = pd.qcut(
+        rfm["monetary"].rank(method="first"), 3, labels=[1, 2, 3], duplicates="drop"
+    )
+    rfm["segment"] = rfm["R"].astype(str) + rfm["F"].astype(str) + rfm["M"].astype(str)
+    print("--- rfm ---")
+    print(
+        "recency дней min/median/max",
+        int(rfm["recency"].min()),
+        float(rfm["recency"].median()),
+        int(rfm["recency"].max()),
+    )
+    print(rfm["segment"].value_counts().head(10))
+    top = rfm[rfm["segment"] == "333"]
+    if len(top):
+        print(
+            "333 клиентов",
+            len(top),
+            "доля gmv%",
+            round(top["gmv"].sum() / rfm["gmv"].sum() * 100, 1),
+        )
+    cold = rfm[rfm["R"].astype(int) == 1]
+    print(
+        "остывшие R=1",
+        len(cold),
+        "доля клиентов%",
+        round(len(cold) / len(rfm) * 100, 1),
+        "доля gmv%",
+        round(cold["gmv"].sum() / rfm["gmv"].sum() * 100, 1),
+    )
+    return rfm
+
+
 def kpi_by_subscription(clean: pd.DataFrame, people: pd.DataFrame) -> pd.DataFrame:
     # в этом файле у клиента один статус на все строки — можно взять first
-    sub = (
-        clean.groupby(CLIENT_COL, as_index=False)[SUB_COL]
-        .first()
-    )
+    sub = clean.groupby(CLIENT_COL, as_index=False)[SUB_COL].first()
     p = people.merge(sub, on=CLIENT_COL, how="left")
     gmv_all = p["gmv"].sum()
     out = p.groupby(SUB_COL, as_index=False).agg(
@@ -120,6 +163,7 @@ def main() -> None:
     kpi_year_month(clean)
     kpi_repeat(people)
     kpi_retention(clean)
+    kpi_rfm(clean, people)
     kpi_by_subscription(clean, people)
 
 
