@@ -94,14 +94,14 @@ def kpi_retention(clean: pd.DataFrame) -> None:
 
 
 def kpi_rfm(clean: pd.DataFrame, people: pd.DataFrame) -> pd.DataFrame:
-    # R = дни с ПОСЛЕДНЕЙ покупки (не first_order). Опора = max даты в файле, не now().
+    # R = дни с последней покупки. Опора = max даты в файле
     ref = clean[DATE_COL].max()
     last = clean.groupby(CLIENT_COL)[DATE_COL].max().rename("last_order")
     rfm = people.merge(last, left_on=CLIENT_COL, right_index=True, how="left")
     rfm["recency"] = (ref - rfm["last_order"]).dt.days
     rfm["frequency"] = rfm["orders"]
     rfm["monetary"] = rfm["gmv"]
-    # R: меньше дней → выше балл. F/M: больше → выше.
+    # R меньше дней → выше балл. F/M: больше → выше.
     rfm["R"] = pd.qcut(rfm["recency"], 3, labels=[3, 2, 1], duplicates="drop")
     rfm["F"] = pd.qcut(
         rfm["frequency"].rank(method="first"), 3, labels=[1, 2, 3], duplicates="drop"
